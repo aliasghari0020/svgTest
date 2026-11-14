@@ -1,0 +1,59 @@
+name: Sync images to Shopify
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Really upload to Shopify? (false = dry run, report only)"
+        type: boolean
+        default: false
+      limit:
+        description: "Max images to process (0 = all)"
+        default: "0"
+
+permissions:
+  contents: write   # to commit state/uploaded.json back
+
+concurrency:
+  group: shopify-image-sync   # never run two syncs at the same time
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: Run sync
+        env:
+          SHOPIFY_STORE: ${{ secrets.SHOPIFY_STORE }}
+          SHOPIFY_ADMIN_TOKEN: ${{ secrets.SHOPIFY_ADMIN_TOKEN }}
+        run: |
+          ARGS="--limit ${{ inputs.limit }}"
+          if [ "${{ inputs.apply }}" = "true" ]; then ARGS="$ARGS --apply"; fi
+          python sync_images.py $ARGS
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-report
+          path: reports/
+
+      - name: Commit state file
+        if: always() && inputs.apply
+        run: |
+          if [ -f state/uploaded.json ] && [ -n "$(git status --porcelain state/)" ]; then
+            git config user.name  "image-sync-bot"
+            git config user.email "image-sync-bot@users.noreply.github.com"
+            git add state/uploaded.json
+            git commit -m "Update Shopify image sync state"
+            git push
+          fi
