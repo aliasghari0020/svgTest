@@ -5,5 +5,26 @@
     "variant_id": "gid://shopify/ProductVariant/66741674147885",
     "path": "images/Electrical/Power-Distribution/ELCO_Lighting/ELWB-V.jpg",
     "at": "2026-11-15T14:29:50Z"
+  },
+  "a92dd9286fa351fbb9a15ff4800d5c4bfa3426dd47d3180dd155bcdd5063a5fa:ELWW": {
+    "file_id": "gid://shopify/MediaImage/46511432990765",
+    "product_id": "gid://shopify/Product/15101645848621",
+    "variant_id": "gid://shopify/ProductVariant/66741674246189",
+    "path": "images/Electrical/Power-Distribution/ELCO_Lighting/ELWW-V.jpg",
+    "at": "2026-11-15T14:41:43Z"
+  },
+  "2ed2bddd8bbac46fcaece560bf49c6cb50ac259c58037f7754dd50c7d835ebf3:EP2025B": {
+    "file_id": "gid://shopify/MediaImage/46511433416749",
+    "product_id": "gid://shopify/Product/15374903902253",
+    "variant_id": "gid://shopify/ProductVariant/67528627814445",
+    "path": "images/Electrical/Power-Distribution/ELCO_Lighting/EP2025B-V.jpg",
+    "at": "2026-11-15T14:41:46Z"
+  },
+  "d843f2852dd7e9410ebf5e248d3dda3aa7b2628aeb974c43bf7392e697997741:EP2028B": {
+    "file_id": "gid://shopify/MediaImage/46511433842733",
+    "product_id": "gid://shopify/Product/15374903869485",
+    "variant_id": "gid://shopify/ProductVariant/67528627748909",
+    "path": "images/Electrical/Power-Distribution/ELCO_Lighting/EP2028B-V.jpg",
+    "at": "2026-11-15T14:41:50Z"
   }
 }
