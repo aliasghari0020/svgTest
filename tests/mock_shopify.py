@@ -28,6 +28,9 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = self.rfile.read(int(self.headers["Content-Length"]))
+        if self.path == "/token":
+            CALLS.append("token")
+            return self._send({"access_token": "shpat_test", "scope": "write_products,write_files", "expires_in": 86399})
         if self.path == "/upload":
             CALLS.append("upload")
             return self._send({}, 201)

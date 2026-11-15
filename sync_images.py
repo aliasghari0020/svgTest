@@ -14,10 +14,14 @@ Default is a DRY RUN: nothing is written to Shopify, only a report is produced.
 Pass --apply to actually upload.
 
 Env:
-    SHOPIFY_STORE         e.g. lumera-electric.myshopify.com
-    SHOPIFY_ADMIN_TOKEN   Admin API access token of a custom app
-                          scopes: read_products, write_products, read_files, write_files
-    SHOPIFY_API_VERSION   optional, default 2026-10
+    SHOPIFY_STORE          e.g. lumera-electric.myshopify.com
+    Auth, either:
+      SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET   app created in the Shopify Dev Dashboard
+                                                  (token fetched with the client credentials grant,
+                                                  valid ~24h, refreshed automatically)
+      SHOPIFY_ADMIN_TOKEN                         shpat_ token of an old admin-created custom app
+    App scopes: read_products, write_products, read_files, write_files
+    SHOPIFY_API_VERSION    optional, default 2026-10
 """
 from __future__ import annotations
 
@@ -77,14 +81,40 @@ class ImageFile:
 # --------------------------------------------------------------------------- Shopify client
 
 class Shopify:
-    def __init__(self, store: str, token: str, url: str | None = None):
+    def __init__(self, store: str, token: str | None = None, client_id: str | None = None,
+                 client_secret: str | None = None, url: str | None = None, token_url: str | None = None):
         self.url = url or f"https://{store}/admin/api/{API_VERSION}/graphql.json"
+        self.token_url = token_url or f"https://{store}/admin/oauth/access_token"
+        self.client_id, self.client_secret = client_id, client_secret
         self.s = requests.Session()
-        self.s.headers.update({"X-Shopify-Access-Token": token, "Content-Type": "application/json"})
+        self.s.headers.update({"Content-Type": "application/json"})
+        self._set_token(token or self._fetch_token())
+
+    def _set_token(self, token: str) -> None:
+        self.s.headers["X-Shopify-Access-Token"] = token
+
+    def _fetch_token(self) -> str:
+        """Client credentials grant (Dev Dashboard apps). Tokens last ~24h."""
+        if not (self.client_id and self.client_secret):
+            raise RuntimeError("No SHOPIFY_ADMIN_TOKEN and no SHOPIFY_CLIENT_ID/SHOPIFY_CLIENT_SECRET")
+        r = requests.post(self.token_url, data={
+            "grant_type": "client_credentials",
+            "client_id": self.client_id, "client_secret": self.client_secret,
+        }, timeout=60)
+        if r.status_code != 200:
+            raise RuntimeError(f"token request failed: {r.status_code} {r.text[:300]}")
+        body = r.json()
+        print(f"access token obtained (scopes: {body.get('scope')}, expires in {body.get('expires_in')}s)")
+        return body["access_token"]
 
     def gql(self, query: str, variables: dict | None = None, retries: int = 6) -> dict:
+        refreshed = False
         for attempt in range(retries):
             r = self.s.post(self.url, json={"query": query, "variables": variables or {}}, timeout=60)
+            if r.status_code == 401 and self.client_id and not refreshed:
+                self._set_token(self._fetch_token())   # token expired -> get a new one
+                refreshed = True
+                continue
             if r.status_code in (429, 502, 503, 504):
                 time.sleep(2 ** attempt)
                 continue
@@ -250,11 +280,17 @@ def main() -> int:
                     help="do not overwrite a variant that already has an image")
     args = ap.parse_args()
 
-    store, token = os.environ.get("SHOPIFY_STORE"), os.environ.get("SHOPIFY_ADMIN_TOKEN")
-    if not store or not token:
-        print("Set SHOPIFY_STORE and SHOPIFY_ADMIN_TOKEN", file=sys.stderr)
+    env = os.environ
+    store = env.get("SHOPIFY_STORE")
+    token = env.get("SHOPIFY_ADMIN_TOKEN") or None
+    cid, csec = env.get("SHOPIFY_CLIENT_ID") or None, env.get("SHOPIFY_CLIENT_SECRET") or None
+    if not store or not (token or (cid and csec)):
+        print("Set SHOPIFY_STORE and either SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET "
+              "or SHOPIFY_ADMIN_TOKEN", file=sys.stderr)
         return 2
-    shop = Shopify(store, token, os.environ.get("SHOPIFY_GRAPHQL_URL"))
+    store = store.replace("https://", "").replace("http://", "").strip("/")
+    shop = Shopify(store, token=token, client_id=cid, client_secret=csec,
+                   url=env.get("SHOPIFY_GRAPHQL_URL"), token_url=env.get("SHOPIFY_TOKEN_URL"))
 
     state_path = Path(args.state)
     state = json.loads(state_path.read_text()) if state_path.exists() else {}

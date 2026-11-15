@@ -34,7 +34,9 @@ jobs:
       - name: Run sync
         env:
           SHOPIFY_STORE: ${{ secrets.SHOPIFY_STORE }}
-          SHOPIFY_ADMIN_TOKEN: ${{ secrets.SHOPIFY_ADMIN_TOKEN }}
+          SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
+          SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
+          SHOPIFY_ADMIN_TOKEN: ${{ secrets.SHOPIFY_ADMIN_TOKEN }}   # optional, old-style token
         run: |
           ARGS="--limit ${{ inputs.limit }}"
           if [ "${{ inputs.apply }}" = "true" ]; then ARGS="$ARGS --apply"; fi
