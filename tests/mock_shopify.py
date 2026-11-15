@@ -11,6 +11,7 @@ VARIANTS = {
     "EP2025B": ("gid://shopify/Product/3", "elco-lighting-ep2025b-low-voltage-transformer-multi", "ELCO Lighting", "All Black"),
     # EP2028B intentionally missing -> should be reported as no_match
 }
+DUPLICATES = {"EP2025B": "DRAFT", "ELWW": "ARCHIVED"}
 CALLS = []
 files = {}
 
@@ -46,6 +47,12 @@ class H(BaseHTTPRequestHandler):
                               "media": {"nodes": []},
                               "product": {"id": pid, "title": f"ELCO {sku}", "handle": handle,
                                           "vendor": vendor, "status": "ACTIVE"}})
+            if sku in DUPLICATES:   # an old copy of the same product with the same SKU
+                nodes.append({"id": f"gid://shopify/ProductVariant/{sku}-old", "sku": sku, "title": "Default Title",
+                              "media": {"nodes": []},
+                              "product": {"id": f"gid://shopify/Product/old-{sku}", "title": f"ELCO {sku} (old)",
+                                          "handle": f"{sku.lower()}-old", "vendor": "ELCO Lighting",
+                                          "status": DUPLICATES[sku]}})
             CALLS.append(f"find:{sku}")
             return self._send({"data": {"productVariants": {"nodes": nodes}}, "extensions": ext})
         if "stagedUploadsCreate" in q:

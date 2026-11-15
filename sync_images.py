@@ -263,10 +263,20 @@ def match(shop: Shopify, img: ImageFile) -> None:
         img.status = "vendor_mismatch"
         img.note = "SKU found but vendor differs: " + ", ".join(v["product"]["vendor"] for v in candidates)
         return
-    if img.kind == "V" and len(same_vendor) > 1:
-        img.status, img.note = "ambiguous", f"{len(same_vendor)} variants share this SKU+vendor"
+    # Duplicate SKUs usually come from old copies of a product: ignore ARCHIVED ones,
+    # and if exactly one ACTIVE product is left, that is the one to use.
+    live = [v for v in same_vendor if v["product"]["status"] != "ARCHIVED"] or same_vendor
+    active = [v for v in live if v["product"]["status"] == "ACTIVE"]
+    if len(live) > 1 and len(active) == 1:
+        img.extra["skipped_duplicates"] = ", ".join(
+            f'{v["product"]["handle"]} ({v["product"]["status"]})' for v in same_vendor if v is not active[0])
+        live = active
+    if img.kind == "V" and len(live) > 1:
+        img.status = "ambiguous"
+        img.note = "same SKU+vendor on: " + "; ".join(
+            f'{v["product"]["handle"]} / {v["title"]} ({v["product"]["status"]})' for v in live)
         return
-    v = same_vendor[0]
+    v = live[0]
     img.product_id, img.product_title = v["product"]["id"], v["product"]["title"]
     img.product_handle = v["product"]["handle"]
     img.variant_id, img.variant_title = v["id"], v["title"]
@@ -332,9 +342,13 @@ def main() -> int:
                 img.status, img.note = "skipped", "variant already has an image"
                 print(f"  - {img.path.name}: skipped (variant has image)")
                 continue
+            dup = img.extra.get("skipped_duplicates")
+            if dup:
+                img.note = f"ignored duplicate SKU on: {dup}"
             if not args.apply:
                 img.status = "would_upload"
-                print(f"  ~ {img.path.name} -> {img.product_handle} / {img.variant_title} [{img.kind}]")
+                print(f"  ~ {img.path.name} -> {img.product_handle} / {img.variant_title} [{img.kind}]"
+                      + (f"   (ignored: {dup})" if dup else ""))
                 continue
 
             resource = shop.staged_upload(img.path)
