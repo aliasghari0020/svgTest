@@ -123,6 +123,9 @@ class Shopify:
                 self._set_token(self._fetch_token())   # token expired -> get a new one
                 refreshed = True
                 continue
+            if r.status_code == 401:
+                raise RuntimeError("401 Unauthorized: the access token is not valid for this store "
+                                   "(check SHOPIFY_STORE matches the shop the token was issued for)")
             if r.status_code in (429, 502, 503, 504):
                 time.sleep(2 ** attempt)
                 continue
@@ -300,6 +303,9 @@ def main() -> int:
               "or SHOPIFY_ADMIN_TOKEN", file=sys.stderr)
         return 2
     store = store.replace("https://", "").replace("http://", "").strip("/")
+    if token:
+        cid = csec = None   # a fixed admin token is used as-is; never fall back to client credentials
+    print(f"store host starts with {store[:6]!r}")
     shop = Shopify(store, token=token, client_id=cid, client_secret=csec,
                    url=env.get("SHOPIFY_GRAPHQL_URL"), token_url=env.get("SHOPIFY_TOKEN_URL"))
 
