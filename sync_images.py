@@ -102,10 +102,18 @@ class Shopify:
             "client_id": self.client_id, "client_secret": self.client_secret,
         }, timeout=60)
         if r.status_code != 200:
-            raise RuntimeError(f"token request failed: {r.status_code} {r.text[:300]}")
+            raise RuntimeError(f"token request failed: {r.status_code} {self._oauth_error(r.text)}")
         body = r.json()
         print(f"access token obtained (scopes: {body.get('scope')}, expires in {body.get('expires_in')}s)")
         return body["access_token"]
+
+    @staticmethod
+    def _oauth_error(text: str) -> str:
+        """Shopify returns an HTML page on OAuth errors; pull out the readable message."""
+        found = [re.sub(r"\s+", " ", m).strip() for m in re.findall(r"Oauth error [^<]+", text)]
+        if found:
+            return max(found, key=len)   # the <title> is short; the body has the full message
+        return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text)).strip()[:300]
 
     def gql(self, query: str, variables: dict | None = None, retries: int = 6) -> dict:
         refreshed = False
@@ -280,10 +288,13 @@ def main() -> int:
                     help="do not overwrite a variant that already has an image")
     args = ap.parse_args()
 
-    env = os.environ
+    env = {k: v.strip() for k, v in os.environ.items() if k.startswith("SHOPIFY_")}
     store = env.get("SHOPIFY_STORE")
     token = env.get("SHOPIFY_ADMIN_TOKEN") or None
     cid, csec = env.get("SHOPIFY_CLIENT_ID") or None, env.get("SHOPIFY_CLIENT_SECRET") or None
+    print(f"store={store} client_id={'set' if cid else 'MISSING'} ({len(cid or '')} chars) "
+          f"client_secret={'set' if csec else 'MISSING'} ({len(csec or '')} chars, "
+          f"starts with {(csec or '')[:6]!r}) admin_token={'set' if token else 'not set'}")
     if not store or not (token or (cid and csec)):
         print("Set SHOPIFY_STORE and either SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET "
               "or SHOPIFY_ADMIN_TOKEN", file=sys.stderr)
