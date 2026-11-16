@@ -26,5 +26,117 @@
     "variant_id": "gid://shopify/ProductVariant/67528627748909",
     "path": "images/Electrical/Power-Distribution/ELCO_Lighting/EP2028B-V.jpg",
     "at": "2026-11-15T14:41:50Z"
+  },
+  "9e069a677c439c2d4e77ebec3af7979dba3a1631c501d3f722d25885820e49fd:NLCBC2-45127DW-10": {
+    "file_id": "gid://shopify/MediaImage/46521587957805",
+    "product_id": "gid://shopify/Product/15107859185709",
+    "variant_id": "gid://shopify/ProductVariant/66759437385773",
+    "path": "images/Nora_Lighting/NLCBC2-45127DW-10-V.jpg",
+    "at": "2026-11-16T14:11:38Z"
+  },
+  "31e34d161d237dcc50f35f5a7250ae4717c912c8578935ebd433752167f35c05:NLCBC2-45127DW-10LE4": {
+    "file_id": "gid://shopify/MediaImage/46521587990573",
+    "product_id": "gid://shopify/Product/15107580559405",
+    "variant_id": "gid://shopify/ProductVariant/66759117897773",
+    "path": "images/Nora_Lighting/NLCBC2-45127DW-10LE4-V.jpg",
+    "at": "2026-11-16T14:11:42Z"
+  },
+  "cca0f7be60bfc0ea059ea01b964963df31acc2bafefbf9c47f695e98de2e8190:NLCBC2-45127DW-A": {
+    "file_id": "gid://shopify/MediaImage/46521588023341",
+    "product_id": "gid://shopify/Product/15107866984493",
+    "variant_id": "gid://shopify/ProductVariant/66759447314477",
+    "path": "images/Nora_Lighting/NLCBC2-45127DW-A-V.jpg",
+    "at": "2026-11-16T14:11:45Z"
+  },
+  "3da4629c1c7f57c1354969c3f741365be5a277fe2a0f13b0ad338f0ca10e97c9:NLCBC2-45127DW-ALE4": {
+    "file_id": "gid://shopify/MediaImage/46521588056109",
+    "product_id": "gid://shopify/Product/15107657400365",
+    "variant_id": "gid://shopify/ProductVariant/66759197949997",
+    "path": "images/Nora_Lighting/NLCBC2-45127DW-ALE4-V.jpg",
+    "at": "2026-11-16T14:11:48Z"
+  },
+  "d19897be6794459deeccd0fd2485c9babbcb112f5f7d902e4217738c93f96899:NLCBC2-45130DW-10": {
+    "file_id": "gid://shopify/MediaImage/46521588088877",
+    "product_id": "gid://shopify/Product/15107859415085",
+    "variant_id": "gid://shopify/ProductVariant/66759437615149",
+    "path": "images/Nora_Lighting/NLCBC2-45130DW-10-V.jpg",
+    "at": "2026-11-16T14:11:52Z"
+  },
+  "51906e8987714dec3412e83830d0d1e6781f835ae07d07c570979d4e8194a9ef:NLCBC2-45130DW-10LE4": {
+    "file_id": "gid://shopify/MediaImage/46521588121645",
+    "product_id": "gid://shopify/Product/15107580788781",
+    "variant_id": "gid://shopify/ProductVariant/66759118127149",
+    "path": "images/Nora_Lighting/NLCBC2-45130DW-10LE4-V.jpg",
+    "at": "2026-11-16T14:11:55Z"
+  },
+  "ed8844e2b43cfe15743b9adbeb3e9df8f2e53d9fb4187b9179e6fc1c8b35da00:NLCBC2-45130DW-A": {
+    "file_id": "gid://shopify/MediaImage/46521588154413",
+    "product_id": "gid://shopify/Product/15107867213869",
+    "variant_id": "gid://shopify/ProductVariant/66759449673773",
+    "path": "images/Nora_Lighting/NLCBC2-45130DW-A-V.jpg",
+    "at": "2026-11-16T14:11:58Z"
+  },
+  "8ce0583c99bc6c9d8d42e43f791ec3f384d5cbf3707322d3cfe1fc838f844ec7:NLCBC2-45130DW-ALE4": {
+    "file_id": "gid://shopify/MediaImage/46521588187181",
+    "product_id": "gid://shopify/Product/15107657629741",
+    "variant_id": "gid://shopify/ProductVariant/66759198179373",
+    "path": "images/Nora_Lighting/NLCBC2-45130DW-ALE4-V.jpg",
+    "at": "2026-11-16T14:12:01Z"
+  },
+  "80bfd45cf8d7f18c362205a74db7c6e11744b1328c3862c556a4643f8dd9614a:NLCBC2-45135DW-10": {
+    "file_id": "gid://shopify/MediaImage/46521588219949",
+    "product_id": "gid://shopify/Product/15107859677229",
+    "variant_id": "gid://shopify/ProductVariant/66759437877293",
+    "path": "images/Nora_Lighting/NLCBC2-45135DW-10-V.jpg",
+    "at": "2026-11-16T14:12:04Z"
+  },
+  "d8dd8104bbe4e13a019cc6d5c4ffa27a87e610f907fa3db3b63ca3d8c7a08994:NLCBC2-45135DW-10LE4": {
+    "file_id": "gid://shopify/MediaImage/46521588252717",
+    "product_id": "gid://shopify/Product/15107581018157",
+    "variant_id": "gid://shopify/ProductVariant/66759118356525",
+    "path": "images/Nora_Lighting/NLCBC2-45135DW-10LE4-V.jpg",
+    "at": "2026-11-16T14:12:08Z"
+  },
+  "bb6c11ebcfefdd0e87311830a9fc43962d8c715ffa18da320c20f99424608b17:NLCBC2-45135DW-A": {
+    "file_id": "gid://shopify/MediaImage/46521588285485",
+    "product_id": "gid://shopify/Product/15107867410477",
+    "variant_id": "gid://shopify/ProductVariant/66759449870381",
+    "path": "images/Nora_Lighting/NLCBC2-45135DW-A-V.jpg",
+    "at": "2026-11-16T14:12:11Z"
+  },
+  "440bb9ef8a3fcddc1550b608fa45c837eb8697acc6492f5b1d7bf9b4b7661cff:NLCBC2-45135DW-ALE4": {
+    "file_id": "gid://shopify/MediaImage/46521588318253",
+    "product_id": "gid://shopify/Product/15107657859117",
+    "variant_id": "gid://shopify/ProductVariant/66759198408749",
+    "path": "images/Nora_Lighting/NLCBC2-45135DW-ALE4-V.jpg",
+    "at": "2026-11-16T14:12:14Z"
+  },
+  "c7ed776a2c3fff1d0f7af633a6b0b182d09169dcd8837865d7d3e86d842884ff:NLCBC2-45135HZMPW-ALE4": {
+    "file_id": "gid://shopify/MediaImage/46521588351021",
+    "product_id": "gid://shopify/Product/15107657891885",
+    "variant_id": "gid://shopify/ProductVariant/66759198441517",
+    "path": "images/Nora_Lighting/NLCBC2-45135HZMPW-ALE4-V.jpg",
+    "at": "2026-11-16T14:12:17Z"
+  },
+  "c14e817d26a9b31a61a0194aa122e7a8d0afee52e08f5f41f8292cdd7ac85a74:NLCBC2-451CDDW-A": {
+    "file_id": "gid://shopify/MediaImage/46521588383789",
+    "product_id": "gid://shopify/Product/15107697410093",
+    "variant_id": "gid://shopify/ProductVariant/66759243857965",
+    "path": "images/Nora_Lighting/NLCBC2-451CDDW-A-V.jpg",
+    "at": "2026-11-16T14:12:20Z"
+  },
+  "4d24284124fe78b2cead8b4140c3d3ff8affbc82d64f22c1f3ebbba8557acc53:NLCBC2-453CDDW-A": {
+    "file_id": "gid://shopify/MediaImage/46521588678701",
+    "product_id": "gid://shopify/Product/15107694002221",
+    "variant_id": "gid://shopify/ProductVariant/66759240286253",
+    "path": "images/Nora_Lighting/NLCBC2-453CDDW-A-V.jpg",
+    "at": "2026-11-16T14:12:23Z"
+  },
+  "ae9474bab8660c6d4a89e5022944422f085a0fdea497a04eaa561b1b821e8c8f:NLCBC2-553CDBZBZ-A": {
+    "file_id": "gid://shopify/MediaImage/46521588711469",
+    "product_id": "gid://shopify/Product/15374944174125",
+    "variant_id": "gid://shopify/ProductVariant/67528767537197",
+    "path": "images/Nora_Lighting/NLCBC2-553CDBZBZ-A-V.jpg",
+    "at": "2026-11-16T14:12:27Z"
   }
 }
