@@ -10,6 +10,16 @@ images/<Category>/<Subcategory>/<Brand_Folder>/<SKU>-G-01.jpg   -> product galle
 The brand folder (`ELCO_Lighting` -> `ELCO Lighting`) must match the product **Vendor** in Shopify,
 and `<SKU>` must match the variant **SKU** (case and spaces are ignored).
 
+## SKUs with "/" and other special characters
+A filename cannot contain "/", so write it as "-" (NTH-104W/A -> NTH-104W-A-V.jpg); spaces and quotes are removed.
+The script downloads all store variants once and converts their SKUs the same way, so the image still finds NTH-104W/A.
+If two SKUs become identical after the conversion, the image is reported as "ambiguous" and skipped;
+add a row to sku_overrides.csv (filename,sku) with the exact SKU to resolve it.
+
+## Folders
+Folders are optional. images/NTH-104W-A-V.jpg works. If the folder that holds an image has the name of a store vendor
+(Nora_Lighting -> Nora Lighting), the vendor must match, otherwise the image is reported as vendor_mismatch.
+
 ## Setup (once)
 1. Shopify admin -> Settings -> Apps and sales channels -> Develop apps -> Create an app.
    Admin API scopes: `read_products`, `write_products`, `read_files`, `write_files`. Install it and copy the Admin API token.

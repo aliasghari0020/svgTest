@@ -2,13 +2,22 @@
 """
 Lumera — sync product images from a git folder to Shopify.
 
-Folder layout (same as the lumera repo):
-    images/<Category>/<Subcategory...>/<Brand_Folder>/<SKU>-V.jpg      -> variant image
-    images/<Category>/<Subcategory...>/<Brand_Folder>/<SKU>-G-01.jpg   -> product gallery image
+File naming:
+    <SKU>-V.jpg      -> variant image        <SKU>-G-01.jpg   -> product gallery image
+    Folders are optional: images/<SKU>-V.jpg and images/<Category>/<...>/<Brand>/<SKU>-V.jpg both work.
 
-Matching:  (vendor == brand folder with "_" -> " ")  AND  (variant SKU == SKU from filename)
-           Matching is case-insensitive and ignores spaces, because the image pipeline
-           stripped spaces from SKUs when it built filenames ("MR16 3W-5K" -> "MR163W-5K").
+SKU in the filename:
+    Characters that cannot be in a filename are written like this:
+        "/" -> "-"        e.g. NTH-104W/A      -> NTH-104W-A-V.jpg
+        spaces, quotes -> removed   e.g. MR16 3W-5K -> MR163W-5K-V.jpg
+    All variants of the store are downloaded once (bulk operation) and their SKUs are converted the
+    same way, so NTH-104W-A-V.jpg finds the variant whose SKU is NTH-104W/A.
+    If two different SKUs become identical after this conversion, the image is reported as
+    "ambiguous" and not uploaded; put the exact SKU in sku_overrides.csv (filename,sku) to resolve it.
+
+Brand:
+    If the folder that contains the image is named like a vendor of the store (ELCO_Lighting ->
+    "ELCO Lighting"), the vendor must match too. Any other folder name is ignored.
 
 Default is a DRY RUN: nothing is written to Shopify, only a report is produced.
 Pass --apply to actually upload.
@@ -46,8 +55,16 @@ IMAGE_RE = re.compile(r"^(?P<sku>.+?)-(?P<kind>V|G-(?P<pos>\d+))\.(?P<ext>jpe?g|
 # --------------------------------------------------------------------------- helpers
 
 def norm(s: str) -> str:
-    """Normalise SKU / vendor for comparison."""
+    """Normalise a vendor / folder name for comparison (also used for state-file keys)."""
     return re.sub(r"[\s_]+", "", (s or "")).upper()
+
+
+def norm_sku(s: str) -> str:
+    """Normalise a SKU the same way filenames are written: / -> -, spaces and quotes removed."""
+    s = (s or "").strip().lstrip("'")
+    s = s.replace("/", "-").replace("\\", "-")
+    s = re.sub(r"[\s\"\u2033\u201c\u201d]+", "", s)
+    return s.upper()
 
 
 def sha256(path: Path) -> str:
@@ -66,7 +83,10 @@ class ImageFile:
     kind: str              # "V" or "G"
     position: int          # gallery position, 0 for V
     sha: str
+    folder: str = ""          # name of the folder that holds the image (may be a brand)
     # filled by matching
+    real_sku: str | None = None
+    vendor: str | None = None
     product_id: str | None = None
     product_title: str | None = None
     product_handle: str | None = None
@@ -145,19 +165,58 @@ class Shopify:
         raise RuntimeError("Shopify API: too many retries")
 
     # ---- reads
-    def find_variants_by_sku(self, sku: str) -> list[dict]:
-        q = """
-        query($q: String!) {
-          productVariants(first: 20, query: $q) {
-            nodes {
-              id sku title
-              media(first: 1) { nodes { id } }
-              product { id title handle vendor status }
-            }
+    BULK_QUERY = """
+    {
+      productVariants {
+        edges {
+          node {
+            id sku title
+            product { id title handle vendor status }
+            media { edges { node { id } } }
           }
+        }
+      }
+    }"""
+
+    def fetch_all_variants(self, timeout: int = 1800) -> list[dict]:
+        """Download every variant of the store with one bulk operation (fast for 100k+ variants)."""
+        q = """
+        mutation($q: String!) {
+          bulkOperationRunQuery(query: $q) { bulkOperation { id status } userErrors { field message } }
         }"""
-        data = self.gql(q, {"q": f'sku:"{sku}"'})
-        return data["productVariants"]["nodes"]
+        data = self.gql(q, {"q": self.BULK_QUERY})["bulkOperationRunQuery"]
+        if data["userErrors"]:
+            raise RuntimeError(f"bulkOperationRunQuery: {data['userErrors']}")
+        op_id = data["bulkOperation"]["id"]
+        poll = """query($id: ID!) { node(id: $id) { ... on BulkOperation {
+                    status errorCode objectCount url partialDataUrl } } }"""
+        start, delay = time.time(), 1
+        while True:
+            op = self.gql(poll, {"id": op_id})["node"]
+            if op["status"] == "COMPLETED":
+                break
+            if op["status"] in ("FAILED", "CANCELED", "EXPIRED"):
+                raise RuntimeError(f"bulk operation {op['status']}: {op.get('errorCode')}")
+            if time.time() - start > timeout:
+                raise RuntimeError("bulk operation timed out")
+            time.sleep(delay)
+            delay = min(delay * 2, 10)
+        variants, has_media = {}, set()
+        if op.get("url"):
+            r = requests.get(op["url"], timeout=600)
+            r.raise_for_status()
+            for line in r.text.splitlines():
+                if not line.strip():
+                    continue
+                obj = json.loads(line)
+                if "__parentId" in obj:          # a media line belonging to a variant
+                    has_media.add(obj["__parentId"])
+                elif "sku" in obj:
+                    variants[obj["id"]] = obj
+        for vid, v in variants.items():
+            v["has_media"] = vid in has_media
+        print(f"downloaded {len(variants)} variants from Shopify ({op.get('objectCount')} objects)")
+        return list(variants.values())
 
     # ---- writes
     def staged_upload(self, path: Path) -> str:
@@ -246,41 +305,74 @@ def scan(root: Path) -> list[ImageFile]:
             continue
         kind = "V" if m["kind"].upper() == "V" else "G"
         out.append(ImageFile(
-            path=p, sku=m["sku"], brand=p.parent.name.replace("_", " "), kind=kind,
+            path=p, sku=m["sku"], brand="", kind=kind,
             position=int(m["pos"]) if m["pos"] else 0, sha=sha256(p),
+            folder=p.parent.name if p.parent != root else "",
         ))
     return out
 
 
-def match(shop: Shopify, img: ImageFile) -> None:
-    candidates = [v for v in shop.find_variants_by_sku(img.sku)
-                  if norm(v["sku"]) == norm(img.sku)]
-    same_vendor = [v for v in candidates if norm(v["product"]["vendor"]) == norm(img.brand)]
+class Catalog:
+    """All store variants, indexed by normalised SKU."""
+
+    def __init__(self, variants: list[dict], overrides: dict[str, str]):
+        self.by_sku: dict[str, list[dict]] = {}
+        self.vendors: dict[str, str] = {}
+        for v in variants:
+            if not v.get("sku"):
+                continue
+            self.by_sku.setdefault(norm_sku(v["sku"]), []).append(v)
+            self.vendors[norm(v["product"]["vendor"])] = v["product"]["vendor"]
+        self.overrides = overrides
+
+
+def load_overrides(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    with path.open(encoding="utf-8-sig") as f:
+        return {row["filename"].strip(): row["sku"].strip() for row in csv.DictReader(f) if row.get("filename")}
+
+
+def match(cat: Catalog, img: ImageFile) -> None:
+    wanted = cat.overrides.get(img.path.name)
+    key = norm_sku(wanted) if wanted else norm_sku(img.sku)
+    candidates = cat.by_sku.get(key, [])
+    if wanted:
+        candidates = [v for v in candidates if v["sku"].strip() == wanted] or candidates
+    # a folder named like a store vendor is a brand folder; any other folder is ignored
+    img.brand = cat.vendors.get(norm(img.folder), "")
     if not candidates:
-        img.status, img.note = "no_match", "SKU not found in Shopify"
+        img.status, img.note = "no_match", f"SKU not found in Shopify (looked for {key})"
         return
-    if not same_vendor:
-        img.status = "vendor_mismatch"
-        img.note = "SKU found but vendor differs: " + ", ".join(v["product"]["vendor"] for v in candidates)
-        return
+    if img.brand:
+        same_vendor = [v for v in candidates if norm(v["product"]["vendor"]) == norm(img.brand)]
+        if not same_vendor:
+            img.status = "vendor_mismatch"
+            img.note = (f"folder says {img.brand}, but SKU belongs to: "
+                        + ", ".join(sorted({v['product']['vendor'] for v in candidates})))
+            return
+        candidates = same_vendor
     # Duplicate SKUs usually come from old copies of a product: ignore ARCHIVED ones,
     # and if exactly one ACTIVE product is left, that is the one to use.
-    live = [v for v in same_vendor if v["product"]["status"] != "ARCHIVED"] or same_vendor
+    live = [v for v in candidates if v["product"]["status"] != "ARCHIVED"] or candidates
     active = [v for v in live if v["product"]["status"] == "ACTIVE"]
     if len(live) > 1 and len(active) == 1:
         img.extra["skipped_duplicates"] = ", ".join(
-            f'{v["product"]["handle"]} ({v["product"]["status"]})' for v in same_vendor if v is not active[0])
+            f'{v["product"]["handle"]} ({v["product"]["status"]})' for v in candidates if v is not active[0])
         live = active
-    if img.kind == "V" and len(live) > 1:
+    ambiguous = len(live) > 1 if img.kind == "V" else len({v["product"]["id"] for v in live}) > 1
+    if ambiguous:
         img.status = "ambiguous"
-        img.note = "same SKU+vendor on: " + "; ".join(
-            f'{v["product"]["handle"]} / {v["title"]} ({v["product"]["status"]})' for v in live)
+        img.note = "same SKU on: " + "; ".join(
+            f'{v["sku"]} / {v["product"]["vendor"]} / {v["product"]["handle"]} ({v["product"]["status"]})'
+            for v in live)
         return
     v = live[0]
+    img.real_sku, img.vendor = v["sku"], v["product"]["vendor"]
     img.product_id, img.product_title = v["product"]["id"], v["product"]["title"]
     img.product_handle = v["product"]["handle"]
     img.variant_id, img.variant_title = v["id"], v["title"]
-    img.extra["variant_has_media"] = bool(v["media"]["nodes"])
+    img.extra["variant_has_media"] = v.get("has_media", False)
     img.status = "matched"
 
 
@@ -295,6 +387,8 @@ def main() -> int:
     ap.add_argument("--images", default="images", help="root folder of images")
     ap.add_argument("--state", default="state/uploaded.json", help="idempotency state file (commit it)")
     ap.add_argument("--report", default="reports/sync_report.csv")
+    ap.add_argument("--overrides", default="sku_overrides.csv",
+                    help="optional CSV with columns filename,sku for filenames that cannot be matched automatically")
     ap.add_argument("--apply", action="store_true", help="really write to Shopify (default: dry run)")
     ap.add_argument("--limit", type=int, default=0, help="process at most N images")
     ap.add_argument("--skip-variants-with-media", action="store_true",
@@ -326,6 +420,8 @@ def main() -> int:
     if args.limit:
         images = images[: args.limit]
     print(f"{len(images)} images found | mode: {'APPLY' if args.apply else 'DRY RUN'}")
+    todo = [i for i in images if f"{i.sha}:{norm(i.sku)}" not in state]
+    cat = Catalog(shop.fetch_all_variants() if todo else [], load_overrides(Path(args.overrides)))
 
     for img in images:
         key = f"{img.sha}:{norm(img.sku)}"
@@ -334,7 +430,7 @@ def main() -> int:
             print(f"  = {img.path.name}: already uploaded")
             continue
         try:
-            match(shop, img)
+            match(cat, img)
             if img.status != "matched":
                 print(f"  ! {img.path.name}: {img.status} ({img.note})")
                 continue
@@ -347,7 +443,7 @@ def main() -> int:
                 img.note = f"ignored duplicate SKU on: {dup}"
             if not args.apply:
                 img.status = "would_upload"
-                print(f"  ~ {img.path.name} -> {img.product_handle} / {img.variant_title} [{img.kind}]"
+                print(f"  ~ {img.path.name} -> SKU {img.real_sku} -> {img.product_handle} / {img.variant_title} [{img.kind}]"
                       + (f"   (ignored: {dup})" if dup else ""))
                 continue
 
@@ -363,7 +459,7 @@ def main() -> int:
                           "path": img.path.as_posix(), "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
             state_path.parent.mkdir(parents=True, exist_ok=True)
             state_path.write_text(json.dumps(state, indent=2, ensure_ascii=False))   # save after each image
-            print(f"  + {img.path.name} -> {img.product_handle} ({img.file_id})")
+            print(f"  + {img.path.name} -> SKU {img.real_sku} -> {img.product_handle} ({img.file_id})")
         except Exception as e:  # keep going; report the failure
             img.status, img.note = "error", str(e)[:500]
             print(f"  x {img.path.name}: {e}")
@@ -372,11 +468,11 @@ def main() -> int:
     rp.parent.mkdir(parents=True, exist_ok=True)
     with rp.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["path", "brand", "sku", "kind", "position", "sha256", "status", "note",
-                    "product_handle", "product_id", "variant_title", "variant_id", "file_id"])
+        w.writerow(["path", "brand_folder", "filename_sku", "shopify_sku", "vendor", "kind", "position", "sha256",
+                    "status", "note", "product_handle", "product_id", "variant_title", "variant_id", "file_id"])
         for i in images:
-            w.writerow([i.path.as_posix(), i.brand, i.sku, i.kind, i.position, i.sha, i.status, i.note,
-                        i.product_handle, i.product_id, i.variant_title, i.variant_id, i.file_id])
+            w.writerow([i.path.as_posix(), i.brand, i.sku, i.real_sku, i.vendor, i.kind, i.position, i.sha,
+                        i.status, i.note, i.product_handle, i.product_id, i.variant_title, i.variant_id, i.file_id])
 
     counts: dict[str, int] = {}
     for i in images:
